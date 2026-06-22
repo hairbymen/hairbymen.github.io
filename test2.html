@@ -16,10 +16,8 @@
 
 window.addEventListener("message", function(e) {
 
-    const payload =
-        e.data?.data?.data ||
-        e.data?.data ||
-        e.data;
+    const payload = e.data?.data?.data || e.data?.data || e.data;
+    img.src = payload.logoURL;
 
     console.log("PAYLOAD:", payload);
 
