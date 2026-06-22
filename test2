@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DDC Test</title>
+</head>
+
+<body>
+
+<h2>DDC Test</h2>
+
+<div id="status">Waiting...</div>
+<img id="dynamicImage" style="max-width:100%; margin-top:10px;" />
+
+<script>
+
+window.addEventListener("message", function(e){
+
+    const payload =
+        e.data?.data?.data ||
+        e.data?.data ||
+        e.data;
+
+    const img = document.getElementById("dynamicImage");
+
+    if (payload?.logoURL) {
+        img.src = payload.logoURL;
+    }
+
+});
+
+</script>
+
+</body>
+</html>
