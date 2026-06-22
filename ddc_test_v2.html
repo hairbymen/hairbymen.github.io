@@ -17,23 +17,20 @@
     
 window.addEventListener("message", function(e) {
 
-    console.log("RAW MESSAGE:", e.data);
+    console.log("RAW:", e.data);
 
-    const payload =
-        e.data?.data?.data ||
-        e.data?.data ||
-        e.data;
+    const payload = e.data?.data || e.data;
 
-    console.log("PAYLOAD:", payload);
+    // ✅ handle array correctly
+    const row = Array.isArray(payload) ? payload[0] : payload;
 
-    document.getElementById("status").innerHTML =
-        "<pre>" + JSON.stringify(payload, null, 2) + "</pre>";
+    console.log("ROW:", row);
 
-    const img = document.getElementById("logo");
-
-    const url = payload?.logoURL;
+    const url = row?.logoURL;
 
     console.log("logoURL:", url);
+
+    const img = document.getElementById("logo");
 
     if (url) {
         img.src = url;
@@ -42,6 +39,7 @@ window.addEventListener("message", function(e) {
     }
 
 });
+    
 </script>
 
 </body>
