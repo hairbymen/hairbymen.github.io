@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DDC Test</title>
+</head>
+
+<body>
+
+<h2>DDC Test</h2>
+
+<div id="status">Waiting...</div>
+
+<script>
+
+window.addEventListener("message", function(e){
+
+    console.log("Message received:", e);
+
+    document.getElementById("status").innerHTML =
+        "<pre>" +
+        JSON.stringify(e.data, null, 2) +
+        "</pre>";
+
+});
+
+</script>
+
+</body>
+</html>
