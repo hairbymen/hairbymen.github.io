@@ -14,12 +14,17 @@
 
 <script>
 
-window.addEventListener("message", function(e){
+window.addEventListener("message", function(e) {
 
     const payload =
         e.data?.data?.data ||
         e.data?.data ||
         e.data;
+
+    console.log("PAYLOAD:", payload);
+
+    document.getElementById("status").innerHTML =
+        "<pre>" + JSON.stringify(payload, null, 2) + "</pre>";
 
     const img = document.getElementById("dynamicImage");
 
@@ -28,7 +33,7 @@ window.addEventListener("message", function(e){
     }
 
 });
-
+    
 </script>
 
 </body>
