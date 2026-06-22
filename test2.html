@@ -9,25 +9,29 @@
 
 <h2>DDC Test</h2>
 
-<div id="status">Is this thing on?</div>
-<img id="dynamicImage" style="max-width:100%; margin-top:10px;" />
+<div id="status">Waiting...</div>
+
+<img id="logo" style="max-width:300px; height:auto; display:block; margin-top:10px;" />
 
 <script>
 
 window.addEventListener("message", function(e) {
-
-    const payload = e.data?.data?.data || e.data?.data || e.data;
-    img.src = payload.logoURL;
-
-    console.log("PAYLOAD:", payload);
-
+    
+    console.log("RAW MESSAGE:", e.data);
+    
+    // keep your debug test
     document.getElementById("status").innerHTML =
         "<pre>" + JSON.stringify(payload, null, 2) + "</pre>";
 
-    const img = document.getElementById("dynamicImage");
+    const img = document.getElementById("logo");
 
-    if (payload?.logoURL) {
-        img.src = payload.logoURL;
+    // your column name from Viya
+    const url = payload?.logoURL;
+
+    if (url) {
+        img.src = url;
+    } else {
+        img.removeAttribute("src");
     }
 
 });
