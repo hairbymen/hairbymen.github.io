@@ -11,7 +11,7 @@
 
 <div id="status">Waiting...</div>
 
-<img id="logo" style="max-width:300px; height:auto; display:block; margin-top:10px;" />
+<img id="logo" style="max-width:300px; height:auto;" />
 
 <script>
     
@@ -19,7 +19,6 @@ window.addEventListener("message", function(e) {
 
     console.log("RAW MESSAGE:", e.data);
 
-    // Safely extract payload from Viya (handles nesting differences)
     const payload =
         e.data?.data?.data ||
         e.data?.data ||
@@ -43,7 +42,6 @@ window.addEventListener("message", function(e) {
     }
 
 });
-    
 </script>
 
 </body>
