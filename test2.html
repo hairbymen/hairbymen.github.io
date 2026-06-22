@@ -14,19 +14,27 @@
 <img id="logo" style="max-width:300px; height:auto; display:block; margin-top:10px;" />
 
 <script>
-
+    
 window.addEventListener("message", function(e) {
-    
+
     console.log("RAW MESSAGE:", e.data);
-    
-    // keep your debug test
+
+    // Safely extract payload from Viya (handles nesting differences)
+    const payload =
+        e.data?.data?.data ||
+        e.data?.data ||
+        e.data;
+
+    console.log("PAYLOAD:", payload);
+
     document.getElementById("status").innerHTML =
         "<pre>" + JSON.stringify(payload, null, 2) + "</pre>";
 
     const img = document.getElementById("logo");
 
-    // your column name from Viya
     const url = payload?.logoURL;
+
+    console.log("logoURL:", url);
 
     if (url) {
         img.src = url;
