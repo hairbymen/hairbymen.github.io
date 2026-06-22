@@ -1,47 +1,31 @@
 <!DOCTYPE html>
 <html>
-
 <head>
 
-<meta charset="utf-8">
-
 <script src="https://developer.sas.com/kits/ddc/ddcMessagingUtil.js"></script>
-
-<style>
-
-body{
-    font-family:Arial;
-    padding:20px;
-}
-
-pre{
-    background:#f4f4f4;
-    padding:10px;
-    border:1px solid #ccc;
-    white-space:pre-wrap;
-}
-
-</style>
 
 </head>
 
 <body>
 
-<h2>Waiting for SAS...</h2>
-
-<pre id="output"></pre>
+<div id="status">Loading...</div>
 
 <script>
 
-va.messagingUtil.setOnDataReceivedCallback(function(message){
+if (typeof va === "undefined") {
 
-    document.getElementById("output").textContent =
-        JSON.stringify(message, null, 2);
+    document.getElementById("status").innerHTML =
+        "va object NOT found";
 
-});
+}
+else{
+
+    document.getElementById("status").innerHTML =
+        "va object found";
+
+}
 
 </script>
 
 </body>
-
 </html>
