@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Team Logo Viewer</title>
+</head>
+
+<body>
+
+<h2>DDC Test</h2>
+
+<img id="logo" style="max-width:300px;height:auto;" />
+
+<script>
+
+window.addEventListener("message", function(e) {
+
+    console.log("Received:", e.data);
+
+    const url = e.data?.data?.[0]?.[0];
+
+    if (!url) {
+        console.log("No URL found");
+        return;
+    }
+
+    const img = document.getElementById("logo");
+
+    img.onload = function() {
+        console.log("Image loaded");
+    };
+
+    img.onerror = function() {
+        console.log("Failed to load image:", url);
+    };
+
+    img.src = url;
+
+});
+
+</script>
+
+</body>
+</html>
