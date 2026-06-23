@@ -5,34 +5,40 @@
     <title>Team Logo Viewer</title>
 </head>
 
-<body>
+<body style="font-family:Arial; text-align:center; margin-top:20px;">
 
-<img id="logo" style="max-width:200px;height:auto;" />
+<div id="teamName"
+     style="font-size:22px; font-weight:bold; margin-bottom:15px;">
+</div>
+
+<img id="logo"
+     style="max-width:300px; max-height:300px; object-fit:contain;" />
 
 <script>
 
 window.addEventListener("message", function(e) {
 
-    console.log("Received:", e.data);
+    console.log(e.data);
 
-    const url = e.data?.data?.[0]?.[0];
+    const img = document.getElementById("logo");
+    const teamName = document.getElementById("teamName");
 
-    if (!url) {
-        console.log("No URL found");
+    if (!e.data || !e.data.data || e.data.rowCount === 0) {
+        img.removeAttribute("src");
+        teamName.textContent = "";
         return;
     }
 
-    const img = document.getElementById("logo");
+    // Find the column positions by label
+    const teamIndex = e.data.columns.findIndex(c => c.label === "Team");
+    const logoIndex = e.data.columns.findIndex(c => c.label === "logoURL");
 
-    img.onload = function() {
-        console.log("Image loaded");
-    };
+    const team = e.data.data[0][teamIndex];
+    const logoURL = e.data.data[0][logoIndex];
 
-    img.onerror = function() {
-        console.log("Failed to load image:", url);
-    };
+    teamName.textContent = "Team: " + team;
 
-    img.src = url;
+    img.src = logoURL;
 
 });
 
