@@ -42,9 +42,9 @@ window.addEventListener("message", function(e) {
 
     const team = e.data.data[0][teamIndex];
     const logoURL = e.data.data[0][logoIndex];
-    const playerName = e.data.data[0][playerIndex];
+    const player = e.data.data[0][playerIndex];
 
-    playerName.textContent = "Name: " + playerName;
+    playerName.textContent = "Name: " + player;
     teamName.textContent = "Team: " + team;
 
     img.src = logoURL;
