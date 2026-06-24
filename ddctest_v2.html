@@ -5,12 +5,16 @@
     <title>Team Logo Viewer</title>
 </head>
 
-<body style="font-family:Arial; text-align:center; margin-top:20px;">
+<body style="font-family:Anova, Arial, sans-serif; text-align:center; margin-top:20px;">
 
+<div id="playerName"
+     style="font-size:22px; font-weight:bold; margin-bottom:15px;">
+</div>
+    
 <div id="teamName"
      style="font-size:22px; font-weight:bold; margin-bottom:15px;">
 </div>
-
+    
 <img id="logo"
      style="max-width:300px; max-height:300px; object-fit:contain;" />
 
@@ -22,20 +26,25 @@ window.addEventListener("message", function(e) {
 
     const img = document.getElementById("logo");
     const teamName = document.getElementById("teamName");
+    const playerName = document.getElementById("playerName");
 
     if (!e.data || !e.data.data || e.data.rowCount === 0) {
         img.removeAttribute("src");
         teamName.textContent = "";
+        playerName.textContent = "";
         return;
     }
 
     // Find the column positions by label
     const teamIndex = e.data.columns.findIndex(c => c.label === "Team");
     const logoIndex = e.data.columns.findIndex(c => c.label === "logoURL");
+    const playerIndex = e.data.columns.findIndex(c => c.label === "Player");
 
     const team = e.data.data[0][teamIndex];
     const logoURL = e.data.data[0][logoIndex];
+    const playerName = e.data.data[0][playerIndex];
 
+    playerName.textContent = "Name: " + playerName;
     teamName.textContent = "Team: " + team;
 
     img.src = logoURL;
