@@ -1,2 +1,2 @@
 # hairbymen.github.io
-Do I really need a description? 
+So whatever I write here will appear on the page?
