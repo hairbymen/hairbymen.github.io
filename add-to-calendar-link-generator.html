@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add-to-Calendar Link Generator</title>
+
+  <style>
+    /* ---------- Base page styles ---------- */
+    body {
+      margin: 0;
+      font: 16px "Segoe UI", system-ui, sans-serif;
+      color: #172033;
+      background: #f5f7fb;
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: auto;
+      padding: 36px 18px;
+    }
+
+    .card {
+      margin-top: 20px;
+      padding: 22px;
+      background: #fff;
+      border: 1px solid #d9dfeb;
+      border-radius: 16px;
+    }
+
+    /* ---------- Form layout ---------- */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    input,
+    textarea,
+    select,
+    button,
+    a {
+      font: inherit;
+    }
+
+    input,
+    textarea,
+    select {
+      padding: 11px;
+      border: 1px solid #d9dfeb;
+      border-radius: 9px;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    /* ---------- Buttons and actions ---------- */
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 18px;
+    }
+
+    button,
+    a.btn {
+      padding: 10px 14px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: 0;
+      border-radius: 9px;
+    }
+
+    .primary,
+    .open {
+      color: #fff;
+      background: #2563eb;
+    }
+
+    .secondary,
+    .copy {
+      color: #24324a;
+      background: #eef2f8;
+    }
+
+    /* ---------- Generated results ---------- */
+    #results {
+      display: none;
+    }
+
+    #results.show {
+      display: block;
+    }
+
+    .provider {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 9px;
+      align-items: center;
+      margin: 10px 0;
+      padding: 12px;
+      border: 1px solid #d9dfeb;
+      border-radius: 10px;
+    }
+
+    .muted {
+      color: #667085;
+    }
+
+    .success {
+      color: #067647;
+    }
+
+    .error {
+      color: #b42318;
+    }
+
+    .preview {
+      padding: 10px;
+      font: 12px monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #f8fafc;
+    }
+
+    /* ---------- Small-screen layout ---------- */
+    @media (max-width: 650px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .provider {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .provider > div {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <h1>Add-to-Calendar Link Generator</h1>
+    <p class="muted">
+      Create Google, Microsoft 365, Outlook.com, Yahoo, and ICS calendar entries.
+    </p>
+
+    <!-- Event details form -->
+    <section class="card">
+      <form id="form">
+        <div class="grid">
+          <label class="field full">
+            Event title
+            <input id="title" required>
+          </label>
+
+          <label class="field full">
+            Location / Meeting Link
+            <input
+              id="location"
+              placeholder="Physical location or virtual meeting URL"
+            >
+          </label>
+
+          <label class="field full">
+            Description
+            <textarea id="description"></textarea>
+          </label>
+
+          <label class="field full">
+            Timezone
+            <select id="timezone"></select>
+          </label>
+
+          <label class="full">
+            <input id="allDay" type="checkbox">
+            All-day event
+          </label>
+
+          <label class="field">
+            Start date
+            <input id="startDate" type="date" required>
+          </label>
+
+          <label class="field timed">
+            Start time
+            <input id="startTime" type="time" required>
+          </label>
+
+          <label class="field">
+            End date
+            <input id="endDate" type="date" required>
+          </label>
+
+          <label class="field timed">
+            End time
+            <input id="endTime" type="time" required>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="primary" type="submit">Generate calendar links</button>
+          <button class="secondary" type="reset">Clear</button>
+          <strong id="status" aria-live="polite"></strong>
+        </div>
+      </form>
+    </section>
+
+    <!-- Generated provider links and ICS download -->
+    <section id="results" class="card">
+      <h2>Calendar links</h2>
+      <div id="providers"></div>
+
+      <details>
+        <summary>Show generated URLs</summary>
+        <div id="preview" class="preview"></div>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /* ================================================================
+       * 1. DOM references
+       * Cache frequently used page elements so the rest of the code is
+       * easier to read and does not repeatedly query the document.
+       * ================================================================ */
+      const getById = (id) => document.getElementById(id);
+
+      const form = getById("form");
+      const timezoneSelect = getById("timezone");
+      const allDayCheckbox = getById("allDay");
+      const startDateInput = getById("startDate");
+      const startTimeInput = getById("startTime");
+      const endDateInput = getById("endDate");
+      const endTimeInput = getById("endTime");
+      const resultsSection = getById("results");
+      const providersContainer = getById("providers");
+      const previewContainer = getById("preview");
+      const statusMessage = getById("status");
+
+      /* ================================================================
+       * 2. Timezone data
+       * Used only when the browser cannot provide its own timezone list.
+       * ================================================================ */
+      const fallbackTimezones = [
+        "UTC",
+        "America/St_Johns",
+        "America/Halifax",
+        "America/Toronto",
+        "America/Winnipeg",
+        "America/Regina",
+        "America/Edmonton",
+        "America/Vancouver",
+        "America/Los_Angeles",
+        "America/Denver",
+        "America/Chicago",
+        "America/New_York",
+        "Europe/London",
+        "Europe/Paris",
+        "Europe/Berlin",
+        "Asia/Dubai",
+        "Asia/Kolkata",
+        "Asia/Singapore",
+        "Asia/Tokyo",
+        "Australia/Sydney",
+        "Pacific/Auckland"
+      ];
+
+      /* ================================================================
+       * 3. General formatting helpers
+       * Small utility functions for dates, URLs, and calendar formats.
+       * ================================================================ */
+      const padTwoDigits = (value) => String(value).padStart(2, "0");
+
+      const formatDateInputValue = (date) =>
+        `${date.getFullYear()}-${padTwoDigits(date.getMonth() + 1)}-${padTwoDigits(date.getDate())}`;
+
+      const encode = (value) => encodeURIComponent(value || "");
+
+      const compactLocalDate = (dateString) => dateString.replace(/-/g, "");
+
+      const compactUtcDateTime = (date) =>
+        date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+
+      /* ================================================================
+       * 4. Timezone display and initialization
+       * Builds labels such as "(GMT-04:00) America/Toronto" and selects
+       * the browser's detected timezone by default.
+       * ================================================================ */
+      function getCurrentUtcOffset(timezone) {
+        try {
+          const timezoneNamePart = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            timeZoneName: "shortOffset"
+          })
+            .formatToParts(new Date())
+            .find((part) => part.type === "timeZoneName");
+
+          const offsetText = timezoneNamePart?.value || "GMT";
+
+          if (offsetText === "GMT") {
+            return "GMT+00:00";
+          }
+
+          const match = offsetText.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/);
+
+          return match
+            ? `GMT${match[1]}${padTwoDigits(match[2])}:${padTwoDigits(match[3] || 0)}`
+            : offsetText;
+        } catch {
+          return "GMT";
+        }
+      }
+
+      function loadTimezones() {
+        let timezoneList = fallbackTimezones;
+
+        try {
+          if (Intl.supportedValuesOf) {
+            timezoneList = Intl.supportedValuesOf("timeZone");
+          }
+        } catch {
+          // Keep the fallback list if the browser does not support this API.
+        }
+
+        const detectedTimezone =
+          Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+        if (!timezoneList.includes(detectedTimezone)) {
+          timezoneList = [detectedTimezone, ...timezoneList];
+        }
+
+        timezoneList.forEach((timezone) => {
+          const option = document.createElement("option");
+          option.value = timezone;
+          option.textContent = `(${getCurrentUtcOffset(timezone)}) ${timezone.replace(/_/g, " ")}`;
+          option.selected = timezone === detectedTimezone;
+          timezoneSelect.appendChild(option);
+        });
+      }
+
+      /* ================================================================
+       * 5. Form defaults and all-day behavior
+       * Starts the event at the next half-hour and sets a one-hour duration.
+       * Time fields are hidden and made optional for all-day events.
+       * ================================================================ */
+      function setDefaultDateTimes() {
+        const start = new Date();
+        start.setSeconds(0, 0);
+        start.setMinutes(Math.ceil(start.getMinutes() / 30) * 30);
+
+        startDateInput.value = formatDateInputValue(start);
+        startTimeInput.value = `${padTwoDigits(start.getHours())}:${padTwoDigits(start.getMinutes())}`;
+
+        const end = new Date(start);
+        end.setHours(end.getHours() + 1);
+
+        endDateInput.value = formatDateInputValue(end);
+        endTimeInput.value = `${padTwoDigits(end.getHours())}:${padTwoDigits(end.getMinutes())}`;
+
+        allDayCheckbox.checked = false;
+        updateAllDayFields();
+      }
+
+      function updateAllDayFields() {
+        document.querySelectorAll(".timed").forEach((field) => {
+          field.hidden = allDayCheckbox.checked;
+        });
+
+        const timeIsRequired = !allDayCheckbox.checked;
+        startTimeInput.required = timeIsRequired;
+        endTimeInput.required = timeIsRequired;
+      }
+
+      /* Return the day after a YYYY-MM-DD date. Calendar providers use an
+       * exclusive end date for all-day events. */
+      function addOneDay(dateString) {
+        const [year, month, day] = dateString.split("-").map(Number);
+        return new Date(Date.UTC(year, month - 1, day + 1))
+          .toISOString()
+          .slice(0, 10);
+      }
+
+      /* ================================================================
+       * 6. Timezone conversion
+       * Converts a local date/time in the selected IANA timezone to UTC.
+       * Iteration compensates for timezone offsets and daylight saving time.
+       * ================================================================ */
+      function localDateTimeToUtc(dateString, timeString, timezone) {
+        const [year, month, day] = dateString.split("-").map(Number);
+        const [hour, minute] = timeString.split(":").map(Number);
+
+        const requestedUtcValue = Date.UTC(year, month - 1, day, hour, minute);
+        let adjustedUtcValue = requestedUtcValue;
+
+        const formatter = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone,
+          hour12: false,
+          hourCycle: "h23",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const parts = {};
+
+          formatter.formatToParts(new Date(adjustedUtcValue)).forEach((part) => {
+            if (part.type !== "literal") {
+              parts[part.type] = Number(part.value);
+            }
+          });
+
+          if (parts.hour === 24) {
+            parts.hour = 0;
+          }
+
+          const formattedUtcValue = Date.UTC(
+            parts.year,
+            parts.month - 1,
+            parts.day,
+            parts.hour,
+            parts.minute,
+            parts.second || 0
+          );
+
+          adjustedUtcValue += requestedUtcValue - formattedUtcValue;
+        }
+
+        return new Date(adjustedUtcValue);
+      }
+
+      /* ================================================================
+       * 7. Read and validate form data
+       * Produces one normalized event object for all calendar providers.
+       * If the location is a URL, it is also appended to the description
+       * on its own line under a "Meeting Link" label.
+       * ================================================================ */
+      function getEventData() {
+        const event = {
+          title: getById("title").value.trim(),
+          location: getById("location").value.trim(),
+          description: getById("description").value,
+          timezone: timezoneSelect.value,
+          isAllDay: allDayCheckbox.checked,
+          startDate: startDateInput.value,
+          startTime: startTimeInput.value,
+          endDate: endDateInput.value,
+          endTime: endTimeInput.value
+        };
+
+        const requiredFieldsAreMissing =
+          !event.title ||
+          !event.startDate ||
+          !event.endDate ||
+          (!event.isAllDay && (!event.startTime || !event.endTime));
+
+        if (requiredFieldsAreMissing) {
+          throw new Error("Complete the title, date, and time fields.");
+        }
+
+        if (event.endDate < event.startDate) {
+          throw new Error("End date cannot be before start date.");
+        }
+
+        event.locationIsUrl = /^https?:\/\//i.test(event.location);
+
+        const descriptionBlocks = [event.description];
+        if (event.locationIsUrl) {
+          descriptionBlocks.push(`Meeting Link:\n${event.location}`);
+        }
+
+        // Two line breaks keep the meeting link separate from the description.
+        event.details = descriptionBlocks.filter(Boolean).join("\n\n");
+
+        // Outlook deeplinks accept HTML in the body. Escape user text first,
+        // then convert each line break to a <br> element.
+        event.outlookBody = event.details
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\r\n|\r|\n/g, "<br>");
+
+        if (!event.isAllDay) {
+          event.startUtc = localDateTimeToUtc(
+            event.startDate,
+            event.startTime,
+            event.timezone
+          );
+
+          event.endUtc = localDateTimeToUtc(
+            event.endDate,
+            event.endTime,
+            event.timezone
+          );
+
+          if (event.endUtc <= event.startUtc) {
+            throw new Error("End time must be after start time.");
+          }
+        }
+
+        return event;
+      }
+
+      /* ================================================================
+       * 8. Provider-specific calendar links
+       * Creates links for Google Calendar, Microsoft 365, Outlook.com,
+       * and Yahoo Calendar from the normalized event data.
+       * ================================================================ */
+      function createCalendarLinks(event) {
+        let providerDates;
+        let outlookStart;
+        let outlookEnd;
+        let yahooStart;
+        let yahooDuration;
+
+        if (event.isAllDay) {
+          const exclusiveEndDate = addOneDay(event.endDate);
+
+          providerDates =
+            `${compactLocalDate(event.startDate)}/${compactLocalDate(exclusiveEndDate)}`;
+          outlookStart = `${event.startDate}T00:00:00`;
+          outlookEnd = `${exclusiveEndDate}T00:00:00`;
+          yahooStart = compactLocalDate(event.startDate);
+
+          const durationHours = Math.round(
+            (Date.parse(exclusiveEndDate) - Date.parse(event.startDate)) / 3600000
+          );
+          yahooDuration = `${padTwoDigits(durationHours)}00`;
+        } else {
+          providerDates =
+            `${compactUtcDateTime(event.startUtc)}/${compactUtcDateTime(event.endUtc)}`;
+          outlookStart = event.startUtc.toISOString();
+          outlookEnd = event.endUtc.toISOString();
+          yahooStart = compactUtcDateTime(event.startUtc);
+
+          const durationMinutes = Math.round(
+            (event.endUtc - event.startUtc) / 60000
+          );
+          yahooDuration =
+            `${padTwoDigits(Math.floor(durationMinutes / 60))}` +
+            `${padTwoDigits(durationMinutes % 60)}`;
+        }
+
+        const createOutlookLink = (baseUrl) =>
+          `${baseUrl}?path=/calendar/action/compose` +
+          `&rru=addevent` +
+          `&subject=${encode(event.title)}` +
+          `&body=${encode(event.outlookBody)}` +
+          `&location=${encode(event.location)}` +
+          `&startdt=${encode(outlookStart)}` +
+          `&enddt=${encode(outlookEnd)}` +
+          `&allday=${event.isAllDay ? "true" : "false"}`;
+
+        return {
+          Google:
+            "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+            `&text=${encode(event.title)}` +
+            `&details=${encode(event.details)}` +
+            `&location=${encode(event.location)}` +
+            `&ctz=${encode(event.timezone)}` +
+            `&dates=${providerDates}`,
+
+          "Microsoft 365": createOutlookLink(
+            "https://outlook.office.com/calendar/0/deeplink/compose"
+          ),
+
+          "Outlook.com": createOutlookLink(
+            "https://outlook.live.com/calendar/0/deeplink/compose"
+          ),
+
+          Yahoo:
+            "https://calendar.yahoo.com/?v=60&view=d&type=20" +
+            `&title=${encode(event.title)}` +
+            `&st=${yahooStart}` +
+            `&dur=${yahooDuration}` +
+            `&desc=${encode(event.details)}` +
+            `&in_loc=${encode(event.location)}`
+        };
+      }
+
+      /* ================================================================
+       * 9. ICS file generation
+       * Escapes special ICS characters and creates a universal calendar file.
+       * ================================================================ */
+      function escapeIcsText(value) {
+        return (value || "")
+          .replace(/\\/g, "\\\\")
+          .replace(/\r?\n/g, "\\n")
+          .replace(/,/g, "\\,")
+          .replace(/;/g, "\\;");
+      }
+
+      function createIcsFile(event) {
+        const lines = [
+          "BEGIN:VCALENDAR",
+          "VERSION:2.0",
+          "PRODID:-//Calendar Link Generator//EN",
+          "CALSCALE:GREGORIAN",
+          "BEGIN:VEVENT",
+          `UID:${Date.now()}@calendar-link-generator`,
+          `DTSTAMP:${compactUtcDateTime(new Date())}`
+        ];
+
+        if (event.isAllDay) {
+          lines.push(
+            `DTSTART;VALUE=DATE:${compactLocalDate(event.startDate)}`,
+            `DTEND;VALUE=DATE:${compactLocalDate(addOneDay(event.endDate))}`
+          );
+        } else {
+          lines.push(
+            `DTSTART;TZID=${event.timezone}:${compactLocalDate(event.startDate)}T${event.startTime.replace(":", "")}00`,
+            `DTEND;TZID=${event.timezone}:${compactLocalDate(event.endDate)}T${event.endTime.replace(":", "")}00`
+          );
+        }
+
+        lines.push(`SUMMARY:${escapeIcsText(event.title)}`);
+
+        if (event.details) {
+          lines.push(`DESCRIPTION:${escapeIcsText(event.details)}`);
+        }
+
+        if (event.location) {
+          lines.push(`LOCATION:${escapeIcsText(event.location)}`);
+        }
+
+        if (event.locationIsUrl) {
+          lines.push(`URL:${escapeIcsText(event.location)}`);
+        }
+
+        lines.push("END:VEVENT", "END:VCALENDAR");
+        return `${lines.join("\r\n")}\r\n`;
+      }
+
+      /* ================================================================
+       * 10. Clipboard and file-download helpers
+       * Uses the modern Clipboard API when available, with a fallback for
+       * browsers or local-file contexts where it is unavailable.
+       * ================================================================ */
+      function copyText(text, button) {
+        const showCopiedState = () => {
+          const originalLabel = button.textContent;
+          button.textContent = "Copied";
+          setTimeout(() => {
+            button.textContent = originalLabel;
+          }, 1200);
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(showCopiedState);
+          return;
+        }
+
+        const temporaryTextarea = document.createElement("textarea");
+        temporaryTextarea.value = text;
+        document.body.appendChild(temporaryTextarea);
+        temporaryTextarea.select();
+        document.execCommand("copy");
+        temporaryTextarea.remove();
+        showCopiedState();
+      }
+
+      function downloadIcsFile(icsText, eventTitle) {
+        const objectUrl = URL.createObjectURL(
+          new Blob([icsText], { type: "text/calendar" })
+        );
+
+        const link = document.createElement("a");
+        const safeFileName = eventTitle.replace(/[^a-z0-9]+/gi, "-") || "event";
+
+        link.href = objectUrl;
+        link.download = `${safeFileName}.ics`;
+        link.click();
+
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 500);
+      }
+
+      /* ================================================================
+       * 11. Results rendering
+       * Displays one row per calendar provider plus ICS download controls.
+       * ================================================================ */
+      function renderResults(calendarLinks, icsText, event) {
+        providersContainer.innerHTML = "";
+
+        Object.entries(calendarLinks).forEach(([providerName, providerUrl]) => {
+          const row = document.createElement("div");
+          row.className = "provider";
+          row.innerHTML = `
+            <div>
+              <strong>${providerName}</strong>
+              <div class="muted">Open a pre-filled event</div>
+            </div>
+          `;
+
+          const openLink = document.createElement("a");
+          openLink.className = "btn open";
+          openLink.href = providerUrl;
+          openLink.target = "_blank";
+          openLink.rel = "noopener";
+          openLink.textContent = "Open";
+
+          const copyButton = document.createElement("button");
+          copyButton.className = "copy";
+          copyButton.type = "button";
+          copyButton.textContent = "Copy link";
+          copyButton.addEventListener("click", () =>
+            copyText(providerUrl, copyButton)
+          );
+
+          row.append(openLink, copyButton);
+          providersContainer.appendChild(row);
+        });
+
+        const icsRow = document.createElement("div");
+        icsRow.className = "provider";
+        icsRow.innerHTML = `
+          <div>
+            <strong>ICS file</strong>
+            <div class="muted">Universal calendar file</div>
+          </div>
+        `;
+
+        const downloadButton = document.createElement("button");
+        downloadButton.className = "open";
+        downloadButton.type = "button";
+        downloadButton.textContent = "Download";
+        downloadButton.addEventListener("click", () =>
+          downloadIcsFile(icsText, event.title)
+        );
+
+        const copyIcsButton = document.createElement("button");
+        copyIcsButton.className = "copy";
+        copyIcsButton.type = "button";
+        copyIcsButton.textContent = "Copy ICS";
+        copyIcsButton.addEventListener("click", () =>
+          copyText(icsText, copyIcsButton)
+        );
+
+        icsRow.append(downloadButton, copyIcsButton);
+        providersContainer.appendChild(icsRow);
+
+        previewContainer.textContent = Object.entries(calendarLinks)
+          .map(([providerName, providerUrl]) => `${providerName}:\n${providerUrl}`)
+          .join("\n\n");
+
+        resultsSection.classList.add("show");
+      }
+
+      /* ================================================================
+       * 12. Event listeners
+       * Coordinates submission, reset, all-day changes, and automatic
+       * one-hour end-time updates when the start time changes.
+       * ================================================================ */
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        try {
+          const eventData = getEventData();
+          const calendarLinks = createCalendarLinks(eventData);
+          const icsText = createIcsFile(eventData);
+
+          renderResults(calendarLinks, icsText, eventData);
+          statusMessage.textContent = "Calendar links generated successfully.";
+          statusMessage.className = "success";
+        } catch (error) {
+          resultsSection.classList.remove("show");
+          statusMessage.textContent = error.message;
+          statusMessage.className = "error";
+        }
+      });
+
+      form.addEventListener("reset", () => {
+        // Wait until the browser completes its native form reset first.
+        setTimeout(() => {
+          setDefaultDateTimes();
+          resultsSection.classList.remove("show");
+          statusMessage.textContent = "";
+          statusMessage.className = "";
+        }, 0);
+      });
+
+      allDayCheckbox.addEventListener("change", updateAllDayFields);
+
+      startTimeInput.addEventListener("change", () => {
+        if (!startDateInput.value || !startTimeInput.value) {
+          return;
+        }
+
+        const start = new Date(
+          `${startDateInput.value}T${startTimeInput.value}`
+        );
+        start.setHours(start.getHours() + 1);
+
+        endDateInput.value = formatDateInputValue(start);
+        endTimeInput.value =
+          `${padTwoDigits(start.getHours())}:${padTwoDigits(start.getMinutes())}`;
+      });
+
+      /* ================================================================
+       * 13. Page startup
+       * Populate the timezone list and initialize sensible date/time values.
+       * ================================================================ */
+      loadTimezones();
+      setDefaultDateTimes();
+    })();
+  </script>
+</body>
+</html>
